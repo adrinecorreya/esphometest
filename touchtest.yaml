@@ -1,0 +1,20 @@
+esphome:
+  name: xiao-standalone-blink
+
+esp32:
+  board: seeed_xiao_esp32s3
+  framework:
+    type: arduino
+
+logger: # Optional: Keeps USB serial logging active for troubleshooting
+
+switch:
+  - platform: gpio
+    pin: GPIO21
+    id: built_in_led
+    name: "XIAO Built-in LED"
+
+interval:
+  - interval: 1s
+    then:
+      - switch.toggle: built_in_led
