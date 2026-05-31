@@ -1,0 +1,10 @@
+name: Build ESPHome Firmware
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esphome/build-action@v3
+        with:
+          yaml_file: your_file_name.yaml
