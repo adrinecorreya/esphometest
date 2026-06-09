@@ -1,16 +1,55 @@
-name: Build ESPHome Firmware
-on: [push, workflow_dispatch]
+name: Auto-Build Changed ESPHome Firmware
+on: 
+  push:
+    paths:
+      - 'build/*.yaml' # The workflow will ONLY trigger if a YAML in the build folder changes
+
 jobs:
-  build:
+  # Job 1: Find only the files in /build that were just modified or uploaded
+  discover:
     runs-on: ubuntu-latest
+    outputs:
+      yaml_files: ${{ steps.changed_files.outputs.all_changed_files }}
+      any_changed: ${{ steps.changed_files.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to compare the new upload against previous files
+          
+      - name: Get changed YAML files
+        id: changed_files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: build/*.yaml
+          json: true
+          escape_json: false
+
+  # Job 2: Build firmware only for the files detected above
+  build:
+    needs: discover
+    if: ${{ needs.discover.outputs.any_changed == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        filename: ${{ fromJson(needs.discover.outputs.yaml_files) }}
+        
     steps:
       - uses: actions/checkout@v4
       
       - uses: esphome/build-action@v7
         with:
-          yaml-file: touchtest.yaml
+          # Passes the exact file path (e.g., build/xiao.yaml) to the compiler
+          yaml-file: ${{ matrix.filename }}
+          
+      - name: Clean Artifact Name
+        id: clean_name
+        run: |
+          # Artifact names cannot contain slashes. This extracts just 'xiao.yaml' from 'build/xiao.yaml'
+          BASENAME=$(basename "${{ matrix.filename }}")
+          echo "name=$BASENAME" >> "$GITHUB_OUTPUT"
           
       - uses: actions/upload-artifact@v4
         with:
-          name: xiao-firmware
+          name: ${{ steps.clean_name.outputs.name }}-firmware
           path: "**/*.bin"
